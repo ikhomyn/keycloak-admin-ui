@@ -2,6 +2,9 @@ export default class ListingPage {
   private searchInput = '.pf-c-toolbar__item [type="search"]:visible';
   private itemsRows = "table:visible";
   private itemRowDrpDwn = ".pf-c-dropdown__toggle";
+  private itemRowSelect = ".pf-c-select__toggle:nth-child(1)";
+  private itemRowSelectItem = ".pf-c-select__menu-item";
+  private itemCheckbox = ".pf-c-table__check";
   public exportBtn = '[role="menuitem"]:nth-child(1)';
   public deleteBtn = '[role="menuitem"]:nth-child(2)';
   private searchBtn =
@@ -15,6 +18,11 @@ export default class ListingPage {
   private nextPageBtn =
     "div[class=pf-c-pagination__nav-control] button[data-action=next]:visible";
   public tableRowItem = "tbody tr[data-ouia-component-type]:visible";
+  public parentSelector = "table[aria-label]";
+
+  get parentElement() {
+    return cy.get(this.parentSelector);
+  }
 
   showPreviousPageTableItems() {
     cy.get(this.previousPageBtn).first().click();
@@ -67,6 +75,32 @@ export default class ListingPage {
     return this;
   }
 
+  clickItemCheckbox(itemName: string) {
+    cy.get(this.itemsRows)
+      .contains(itemName)
+      .parentsUntil("tbody")
+      .find(this.itemCheckbox)
+      .click();
+    return this;
+  }
+
+  clickRowSelectButton(itemName: string) {
+    cy.get(this.itemsRows)
+      .contains(itemName)
+      .parentsUntil("tbody")
+      .find(this.itemRowSelect)
+      .click();
+    return this;
+  }
+
+  clickRowSelectItem(rowItemName: string, selectItemName: string) {
+    this.clickRowSelectButton(rowItemName);
+    cy.get(this.itemRowSelectItem).contains(selectItemName).click();
+    cy.wait(3000); //causes detached element in the Dom using searchItem() right after, if timeout is not specified
+
+    return this;
+  }
+
   itemExist(itemName: string, exist = true) {
     cy.get(this.itemsRows)
       .contains(itemName)
@@ -91,6 +125,29 @@ export default class ListingPage {
   exportItem(itemName: string) {
     this.clickRowDetails(itemName);
     this.clickDetailMenu("Export");
+
+    return this;
+  }
+
+  itemsEqualTo(amount: number) {
+    cy.get(this.tableRowItem).its("length").should("be.eq", amount);
+
+    return this;
+  }
+
+  itemsGreaterThan(amount: number) {
+    cy.get(this.tableRowItem).its("length").should("be.gt", amount);
+
+    return this;
+  }
+
+  itemContainValue(itemName: string, colIndex: number, value: string) {
+    cy.get(this.itemsRows)
+      .contains(itemName)
+      .parentsUntil("tbody")
+      .find("td")
+      .eq(colIndex)
+      .should("contain", value);
 
     return this;
   }

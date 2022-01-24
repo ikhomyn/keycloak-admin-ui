@@ -14,6 +14,9 @@ import {
 import RoleMappingTab from "../support/pages/admin_console/manage/RoleMappingTab";
 import KeysTab from "../support/pages/admin_console/manage/clients/KeysTab";
 import ClientScopesTab from "../support/pages/admin_console/manage/clients/ClientScopesTab";
+import ClientScopesToolbarComponent, {
+  FilterAssignedType,
+} from "../support/pages/admin_console/manage/client_scopes/components/ClientScopesToolbarComponent";
 
 let itemId = "client_crud";
 const loginPage = new LoginPage();
@@ -22,13 +25,16 @@ const sidebarPage = new SidebarPage();
 const listingPage = new ListingPage();
 const createClientPage = new CreateClientPage();
 const modalUtils = new ModalUtils();
+const clientsScopesToolbar = new ClientScopesToolbarComponent();
 
 describe("Clients test", () => {
   describe("Client details - Client scopes subtab", () => {
-    const clientScopesTab = new ClientScopesTab();
     const client = new AdminClient();
+    const clientScopesTab = new ClientScopesTab();
     const clientId = "client-scopes-subtab-test";
     const clientScopeName = "client-scope-test";
+    const clientScopeNameDefaultType = "client-scope-test-default-type";
+    const clientScopeNameOptionalType = "client-scope-test-optional-type";
     const clientScope = {
       name: clientScopeName,
       description: "",
@@ -40,6 +46,7 @@ describe("Clients test", () => {
         "consent.screen.text": "",
       },
     };
+    const msgScopeMappingRemoved = "Scope mapping successfully removed";
 
     before(async () => {
       client.createClient({
@@ -55,6 +62,10 @@ describe("Clients test", () => {
           clientId
         );
       }
+      clientScope.name = clientScopeNameDefaultType;
+      await client.createClientScope(clientScope);
+      clientScope.name = clientScopeNameOptionalType;
+      await client.createClientScope(clientScope);
     });
 
     beforeEach(() => {
@@ -72,12 +83,123 @@ describe("Clients test", () => {
       for (let i = 0; i < 5; i++) {
         await client.deleteClientScope(clientScopeName + i);
       }
+      await client.deleteClientScope(clientScopeNameDefaultType);
+      await client.deleteClientScope(clientScopeNameOptionalType);
+    });
+
+    it("should list client scopes", () => {
+      listingPage.itemsGreaterThan(1);
+      listingPage.itemExist(clientScopeName + 0);
+    });
+
+    it("should search existing client scope by name", () => {
+      listingPage.searchItem(clientScopeName + 0, false);
+      listingPage.itemExist(clientScopeName + 0);
+      listingPage.itemsEqualTo(1);
+    });
+
+    it("should search non-existent client scope by name", () => {
+      const itemName = "non-existent-item";
+      listingPage.searchItem(itemName, false);
+      listingPage.itemExist(itemName, false);
+      listingPage.itemsEqualTo(0);
+    });
+
+    it("should search existing client scope by assigned type", () => {
+      clientsScopesToolbar.selectAssignedType(FilterAssignedType.Default);
+      listingPage
+        .itemExist(FilterAssignedType.Default)
+        .itemExist(FilterAssignedType.Optional, false);
+
+      clientsScopesToolbar.selectAssignedType(FilterAssignedType.Optional);
+      listingPage
+        .itemExist(FilterAssignedType.Default, false)
+        .itemExist(FilterAssignedType.Optional);
+
+      clientsScopesToolbar.selectAssignedType(FilterAssignedType.AllTypes);
+      listingPage
+        .itemExist(FilterAssignedType.Default)
+        .itemExist(FilterAssignedType.Optional);
+    });
+
+    /*it("should empty search", () => {
+
+    });*/
+
+    const newItemsWithExpectedAssignedTypes = [
+      [clientScopeNameOptionalType, FilterAssignedType.Optional],
+      [clientScopeNameDefaultType, FilterAssignedType.Default],
+    ];
+    newItemsWithExpectedAssignedTypes.forEach(($type) => {
+      const [itemName, assignedType] = $type;
+      it(`should add client scope ${itemName} with ${assignedType} assigned type`, () => {
+        clientsScopesToolbar.addClientScopeButton.click();
+        modalUtils.checkModalTitle("Add client scopes to " + clientId);
+        listingPage.clickItemCheckbox(itemName);
+        modalUtils.confirmModalWithItem(assignedType);
+        masthead.checkNotificationMessage("Scope mapping successfully updated");
+        listingPage.searchItem(itemName, false);
+        listingPage.itemExist(itemName).itemExist(assignedType);
+      });
+    });
+
+    const expectedItemAssignedTypes = [
+      FilterAssignedType.Optional,
+      FilterAssignedType.Default,
+    ];
+    expectedItemAssignedTypes.forEach(($assignedType) => {
+      const itemName = clientScopeName + 0;
+      it(`should change item ${itemName} AssignedType to ${$assignedType} from search bar`, () => {
+        listingPage.searchItem(itemName, false).clickItemCheckbox(itemName);
+        clientsScopesToolbar.changeTypeTo($assignedType);
+        masthead.checkNotificationMessage("Scope mapping updated");
+        listingPage.searchItem(itemName, false).itemExist($assignedType);
+      });
+    });
+
+    it("should remove client scope from item bar", () => {
+      const itemName = clientScopeName + 3;
+      listingPage.searchItem(itemName, false).clickDetailMenu("Remove");
+      masthead.checkNotificationMessage(msgScopeMappingRemoved);
+      listingPage.searchItem(itemName, false).itemExist(itemName, false);
+    });
+
+    /*it("should remove client scope from search bar", () => {
+      //covered by next test
+    });*/
+
+    it("should remove multiple client scopes from search bar", () => {
+      const itemName1 = clientScopeName + 4;
+      const itemName2 = clientScopeName + 3;
+      clientsScopesToolbar.dropdownActionButton.click();
+      clientsScopesToolbar.dropdownActionMenuItemButton
+        .contains("Remove")
+        .should("have.attr", "aria-disabled", "true");
+      listingPage
+        .searchItem(clientScopeName, false)
+        .clickItemCheckbox(itemName1)
+        .clickItemCheckbox(itemName2);
+      clientsScopesToolbar.performActionRemove();
+      masthead.checkNotificationMessage(msgScopeMappingRemoved);
+      listingPage
+        .searchItem(clientScopeName, false)
+        .itemExist(itemName1, false)
+        .itemExist(itemName2, false);
+      clientsScopesToolbar.dropdownActionButton.click();
+      //clientsScopesToolbar.dropdownActionMenuItemButton.contains("Remove").should('have.attr', 'aria-disabled', 'true'); // TODO: https://github.com/keycloak/keycloak-admin-ui/issues/1854
     });
 
     it("should show items on next page are more than 11", () => {
       listingPage.showNextPageTableItems();
-      cy.get(listingPage.tableRowItem).its("length").should("be.gt", 1);
+      listingPage.itemsGreaterThan(1);
     });
+
+    /*it("should show initial items after filtering", () => { //TODO: https://github.com/keycloak/keycloak-admin-ui/issues/1874
+      clientsScopesToolbar.selectAssignedType(FilterAssignedType.Optional);
+      clientsScopesToolbar.selectFilter(Filter.Name);
+      listingPage.itemExist(FilterAssignedType.Default)
+                 .itemExist(FilterAssignedType.Optional);
+    });*/
   });
 
   describe("Client creation", () => {

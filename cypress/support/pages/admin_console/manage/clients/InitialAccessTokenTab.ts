@@ -1,3 +1,5 @@
+import ClientsTabComponent from "./components/ClientsTabComponent";
+
 export default class InitialAccessTokenTab {
   private initialAccessTokenTab = "initialAccessToken";
 
@@ -6,6 +8,8 @@ export default class InitialAccessTokenTab {
   private expirationInput = "expiration";
   private countInput = "count";
   private saveBtn = "save";
+
+  cmpTabs: ClientsTabComponent = new ClientsTabComponent();
 
   goToInitialAccessTokenTab() {
     cy.findByTestId(this.initialAccessTokenTab).click();
