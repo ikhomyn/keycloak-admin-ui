@@ -48,7 +48,7 @@
     "use-react-router-breadcrumbs": "^2.0.2"
   },
   "devDependencies": {
-    "@cypress/webpack-batteries-included-preprocessor": "^2.2.3",
+    "@cypress/webpack-batteries-included-preprocessor": "^2.3.0",
     "@cypress/webpack-preprocessor": "^5.11.1",
     "@octokit/rest": "^18.12.0",
     "@snowpack/app-scripts-react": "^2.0.1",
